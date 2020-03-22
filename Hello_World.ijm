@@ -1,0 +1,2 @@
+arg = getArgument()
+print(arg);
