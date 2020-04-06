@@ -1,19 +1,16 @@
 # Python  script to apply auto window/level to a NIFTI format file.
-# Python 3.6.3, , numpy 1.17.2
-# nibabel 2.5.0
-# Translated from  AImageT<T>::AutoWindowLevel
+# Python 3.6.3, numpy 1.18.2
+# nibabel 3.0.2
+# Translated from MIS AImageT<T>::AutoWindowLevel
 import os
 import sys
 from pathlib import Path
-
 import argparse
 
 import numpy as np
-
 import nibabel as nib
 import nibabel.orientations as orientations
 
-import glob
 
 import ctypes
 lib = None
@@ -21,12 +18,6 @@ if os.name != 'nt':   # 'posix', 'nt', 'java'
     lib = ctypes.cdll.LoadLibrary('./libautowindowlevel.so')
 else:
     lib = ctypes.cdll.LoadLibrary('./libautowindowlevel.dll')
-
-#globals for now
-IMG_DTYPE = np.uin16  # Unsigned integer (0 to 65535)
-# MIS_DTYPE = np.int16  # Integer (-32768 to 32767) C signed short
-
-
 
 
 def main(inpArgs):
@@ -54,77 +45,83 @@ def read_nifti_series(filename):
     if image_dim >= 3:
         num_images = image_shape[2]
 
-    return proxy_img, hdr, num_images
+    return proxy_img, hdr, num_images, hdr.get_data_dtype()
 
 # img_reorient is the orig input NIFTI image in DICOM LPS
-def write_nifti_mask(img, outputdirectory, base_fname, filepattern = ".nii"):
-    filename = outputdirectory + os.path.sep + base_fname + "_mask1" + filepattern
-    new_header = header = img_reorient.header.copy()
+def write_nifti_series(img, datatype, img_data_array, outputdirectory, base_fname, filepattern = ".nii"):
+    filename = outputdirectory + os.path.sep + base_fname + "_awl" + filepattern
+    new_header = header = img.header.copy()
     new_header.set_slope_inter(1, 0)  # no scaling
-    new_header['cal_min'] = np.min(mask_data)
-    new_header['cal_max'] = np.max(mask_data)
+    new_header['cal_min'] = np.min(img_data_array)
+    new_header['cal_max'] = np.max(img_data_array)
     new_header['bitpix'] = 16
-    new_header['descrip'] = "NIfti mask volume from Caffe 1.0"
+    new_header['descrip'] = "NIfti suto window level volume"
 
-    mask2 = np.zeros(img_reorient.shape, MASK_DTYPE)
-    mask2[..., 0] = mask_data  # Add a 4th dim for Nifti, not sure if last dim is number of channels?
-    nifti_mask_img = nib.nifti1.Nifti1Image(mask2, img_reorient.affine, header=new_header)
-
-    # Need to xform numpy from supposed DICOM LPS to NIFTI original orientation (i.e. LAS, RAS, etc.)
-    orients = orientations.axcodes2ornt(axcodes, nifti_in_codes_labels[axcodes])
-    mask_reorient = nifti_mask_img.as_reoriented(orients)
-    nib.save(mask_reorient, filename)
+    img2 = np.zeros(img.shape, datatype)
+    img2[..., 0] = img_data_array,  # Add a 4th dim for Nifti, not sure if last dim is number of channels?
+    nifti_img = nib.nifti1.Nifti1Image(img2, img.affine, header=new_header)
+    nib.save(nifti_img, filename)
 
 
-def get_image_slice(img, slice_no, load_as_dicom):
-    if load_as_dicom:
-        return img[..., slice_no]
-    else:
-        return img.dataobj[..., slice_no, 0]
+def get_image_slice(img, slice_no):
+    return img.dataobj[..., slice_no, 0]
 
 """ Image Stats / Display"""
 def stat(array):
     print('min: ' + str(np.min(array)) + ' max: ' + str(np.max(array)) + ' median: ' + str(np.median(array)) + ' avg: ' + str(np.mean(array)))
 
 def perform_autowindowlevel(input_nifti_file):
-    """ Read Test Data """
-    img, hdr, num_images = read_nifti_series(input_nifti_file)
+    img, hdr, num_images, datatype = read_nifti_series(input_nifti_file)
+    img_data_array = None  # NIFTI only
+    for slice_no in range(0, num_images):
+        img_slc = get_image_slice(img, slice_no)
 
-    # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
-    img_slc  = img_slc.astype(MIS_DTYPE)  # np.int16
-    (rows, cols) = img_slc.shape
-    width = ctypes.c_int(cols)
-    height = ctypes.c_int(rows)
-    HasPadding = ctypes.c_bool(False)
-    PaddingValue = ctypes.c_int(0)
-    Slope = ctypes.c_double(m)
-    Intercept = ctypes.c_double(b)
-    c_short_p = ctypes.POINTER(ctypes.c_short)
-    data = img_slc.ctypes.data_as(c_short_p)
-    Window = ctypes.c_double()
-    Level = ctypes.c_double()
-    lib.AutoWindowLevel(data, width, height, Intercept, Slope, HasPadding, PaddingValue, ctypes.byref(Window), ctypes.byref(Level))
-    win = Window.value
-    lev = Level.value
-    print("Auto W/L window = " + str(win) + ", level = " + str(lev))
-    if win != 1:
-        thresh_lo = float(lev) - 0.5 - float(win-1) / 2.0
-        thresh_hi = float(lev) - 0.5 + float(win-1) / 2.0
-        thresh_hi += 1.0  # +1 due to > sided test
-        img_slc = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
-        print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
-        stat(img_slc)
+        # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
+        (rows, cols) = img_slc.shape
+        width = ctypes.c_int(cols)
+        height = ctypes.c_int(rows)
+        HasPadding = ctypes.c_bool(False)
+        PaddingValue = ctypes.c_int(0)
+        Slope = ctypes.c_double(1)
+        Intercept = ctypes.c_double(0)
 
-    # NIFTI create and fill mask array
-    ConstMaskDims = (num_rows, num_cols, num_images)
-    mask_data_array = np.zeros(ConstMaskDims, dtype=MASK_DTYPE)
-    mask_data_array[..., slice_no] = mask1
-    print("Processed slice: " + str(slice_no+1) + " of " + str(num_images))
+        if datatype == np.int16:
+            c_short_p = ctypes.POINTER(ctypes.c_short)
+            data = img_slc.ctypes.data_as(c_short_p)
+        elif datatype == np.uint16:
+            c_ushort_p = ctypes.POINTER(ctypes.c_ushort)
+            data = img_slc.ctypes.data_as(c_ushort_p)
+        else:
+            raise NotImplementedError("Input image data type not supported: " + str(datatype))
 
-    nifti_base = Path(input_dir_file).resolve().stem
-    write_nifti_mask(img, axcodes, mask_data_array, results_dir, nifti_base)
+        Window = ctypes.c_double()
+        Level = ctypes.c_double()
+        lib.AutoWindowLevel(data, width, height, Intercept, Slope, HasPadding, PaddingValue,
+                            ctypes.byref(Window), ctypes.byref(Level))
+        win = Window.valud
+        lev = Level.value
+        print("Auto W/L window = " + str(win) + ", level = " + str(lev))
+        if win != 1:
+            thresh_lo = float(lev) - 0.5 - float(win-1) / 2.0
+            thresh_hi = float(lev) - 0.5 + float(win-1) / 2.0
+            thresh_hi += 1.0  # +1 due to > sided test
+            img_slc = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
+            print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
+            stat(img_slc)
 
-    print("Caffe liver inference COMPLETE.")
+        # NIFTI create and fill mask array
+        if slice_no == 0:
+            ConstImgDims = (rows, cols, num_images)
+            img_data_array = np.zeros(ConstImgDims, dtype=datatype)
+            img_data_array[..., slice_no] = img_slc
+        print("Processed slice: " + str(slice_no+1) + " of " + str(num_images))
+
+        file_as_path = Path(input_nifti_file)
+        nifti_base = file_as_path.resolve().stem
+        write_nifti_series(img, datatype, img_data_array, file_as_path.parent, nifti_base)
+
+    print("Auto window level COMPLETE.")
+
 
 if __name__ == '__main__':
     '''
