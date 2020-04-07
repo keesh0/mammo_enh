@@ -6,11 +6,8 @@ import os
 import sys
 from pathlib import Path
 import argparse
-
 import numpy as np
 import nibabel as nib
-import nibabel.orientations as orientations
-
 
 import ctypes
 lib = None
@@ -85,12 +82,20 @@ def perform_autowindowlevel(input_nifti_file):
         Slope = ctypes.c_double(1)
         Intercept = ctypes.c_double(0)
 
+        MIN_ALLOWED = 0
+        MAX_ALLOWED = 0
+        #short	2 bytes	-32,768 to 32,767
+        #unsigned short	2 bytes	0 to 65,535
         if datatype == np.int16:
             c_short_p = ctypes.POINTER(ctypes.c_short)
             data = img_slc.ctypes.data_as(c_short_p)
+            MIN_ALLOWED = -32768
+            MAX_ALLOWED = 32767
         elif datatype == np.uint16:
             c_ushort_p = ctypes.POINTER(ctypes.c_ushort)
             data = img_slc.ctypes.data_as(c_ushort_p)
+            MIN_ALLOWED = 0
+            MAX_ALLOWED = 65535
         else:
             raise NotImplementedError("Input image data type not supported: " + str(datatype))
 
@@ -105,6 +110,10 @@ def perform_autowindowlevel(input_nifti_file):
             thresh_lo = float(lev) - 0.5 - float(win-1) / 2.0
             thresh_hi = float(lev) - 0.5 + float(win-1) / 2.0
             thresh_hi += 1.0  # +1 due to > sided test
+            if thresh_lo < MIN_ALLOWED:
+                thresh_lo = MIN_ALLOWED
+            if thresh_hi > MAX_ALLOWED:
+                thresh_hi = MAX_ALLOWED
             img_slc = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
             print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
             stat(img_slc)
@@ -113,7 +122,7 @@ def perform_autowindowlevel(input_nifti_file):
         if slice_no == 0:
             ConstImgDims = (rows, cols, num_images)
             img_data_array = np.zeros(ConstImgDims, dtype=datatype)
-            img_data_array[..., slice_no] = img_slc
+        img_data_array[..., slice_no] = img_slc
         print("Processed slice: " + str(slice_no+1) + " of " + str(num_images))
 
         file_as_path = Path(input_nifti_file)
