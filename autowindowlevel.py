@@ -55,7 +55,7 @@ def write_nifti_series(img, datatype, img_data_array, outputdirectory, base_fnam
     new_header['descrip'] = "NIfti suto window level volume"
 
     img2 = np.zeros(img.shape, datatype)
-    img2[..., 0] = img_data_array,  # Add a 4th dim for Nifti, not sure if last dim is number of channels?
+    img2[..., 0] = img_data_array  # Add a 4th dim for Nifti, not sure if last dim is number of channels?
     nifti_img = nib.nifti1.Nifti1Image(img2, img.affine, header=new_header)
     nib.save(nifti_img, filename)
 
@@ -86,12 +86,12 @@ def perform_autowindowlevel(input_nifti_file):
         MAX_ALLOWED = 0
         #short	2 bytes	-32,768 to 32,767
         #unsigned short	2 bytes	0 to 65,535
-        if datatype == np.int16:
+        if str(datatype.name) == "int16":
             c_short_p = ctypes.POINTER(ctypes.c_short)
             data = img_slc.ctypes.data_as(c_short_p)
             MIN_ALLOWED = -32768
             MAX_ALLOWED = 32767
-        elif datatype == np.uint16:
+        elif str(datatype.name) == "uint16":
             c_ushort_p = ctypes.POINTER(ctypes.c_ushort)
             data = img_slc.ctypes.data_as(c_ushort_p)
             MIN_ALLOWED = 0
@@ -103,7 +103,7 @@ def perform_autowindowlevel(input_nifti_file):
         Level = ctypes.c_double()
         lib.AutoWindowLevel(data, width, height, Intercept, Slope, HasPadding, PaddingValue,
                             ctypes.byref(Window), ctypes.byref(Level))
-        win = Window.valud
+        win = Window.value
         lev = Level.value
         print("Auto W/L window = " + str(win) + ", level = " + str(lev))
         if win != 1:
@@ -127,7 +127,7 @@ def perform_autowindowlevel(input_nifti_file):
 
         file_as_path = Path(input_nifti_file)
         nifti_base = file_as_path.resolve().stem
-        write_nifti_series(img, datatype, img_data_array, file_as_path.parent, nifti_base)
+        write_nifti_series(img, datatype, img_data_array, str(file_as_path.parent), nifti_base)
 
     print("Auto window level COMPLETE.")
 
