@@ -51,7 +51,6 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	// I / (M ^ 0.75)  
 	selectImage("I3");
 	run("32-bit");
-	getStatistics(area, mean, min, max, std);
 	imageCalculator("Divide create 32-bit", "I3","M_75");
 
 	//Output
@@ -59,10 +58,11 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	resultSuffix=".nii";
 	selectImage("Result of I3");
 	rename(resultName);
-	// Change Inf values due to division into the constant max of the numerator
 	selectImage(resultName);
-	changeValues(1/0, 1/0, max);  // May need to change Inf to 0 or some other value-- we will see
-	
+	getStatistics(area, mean, min, max, std);  // This calculation excludes Inf
+	// Change Inf values from above division to left-most (smallest value) --  may need to change Inf to some other value
+	changeValues(1/0, 1/0, max);
+
 	//scale when converting is ON by default in both IJ and FIJI
 	run("Conversions...", " ");
 	run("16-bit");
