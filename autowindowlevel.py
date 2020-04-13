@@ -28,6 +28,11 @@ def main(inpArgs):
         print("There was an unexpected error: " + str(e))
         sys.exit(1)
 
+""" Image Processing """
+def normalize_image(img):
+    """ Normalize image values to [0,1] """
+    min_, max_ = float(np.min(img)), float(np.max(img))
+    return (img - min_) / (max_ - min_)
 
 """ Image I/O  """
 def read_nifti_series(filename):
@@ -42,14 +47,15 @@ def read_nifti_series(filename):
     if image_dim >= 3:
         num_images = image_shape[2]
 
-    return proxy_img, hdr, num_images, hdr.get_data_dtype()
+    return proxy_img, hdr, num_images, hdr.get_data_dtype(), hdr["cal_min"], hdr["cal_max"]
+
 
 # img_reorient is the orig input NIFTI image in DICOM LPS
 def write_nifti_series(img, datatype, img_data_array, outputdirectory, base_fname, filepattern = ".nii"):
     filename = outputdirectory + os.path.sep + base_fname + "_awl" + filepattern
     new_header = header = img.header.copy()
     new_header.set_slope_inter(1, 0)  # no scaling
-    new_header['cal_min'] = np.min(img_data_array)
+    new_header['cal_min'] = np.min(img_data_array)  #TODO -- write this as MIS W/L thresholds
     new_header['cal_max'] = np.max(img_data_array)
     new_header['bitpix'] = 16
     new_header['descrip'] = "NIfti suto window level volume"
@@ -68,13 +74,16 @@ def stat(array):
     print('min: ' + str(np.min(array)) + ' max: ' + str(np.max(array)) + ' median: ' + str(np.median(array)) + ' avg: ' + str(np.mean(array)))
 
 def perform_autowindowlevel(input_nifti_file):
-    img, hdr, num_images, datatype = read_nifti_series(input_nifti_file)
+    img, hdr, num_images, datatype, cal_min, cal_max = read_nifti_series(input_nifti_file)
+    print("Calibration: " + str(cal_min) + " " + str(cal_max))
+
     img_data_array = None  # NIFTI only
     for slice_no in range(0, num_images):
         img_slc = get_image_slice(img, slice_no)
+        stat(img_slc)
 
         # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
-        (rows, cols) = img_slc.shape
+        (rows, cols) = img_slc.shape  # TODO -- don't understand rows, cols are flipped for mammos
         width = ctypes.c_int(cols)
         height = ctypes.c_int(rows)
         HasPadding = ctypes.c_bool(False)
