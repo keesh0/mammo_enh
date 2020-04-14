@@ -28,11 +28,9 @@ def main(inpArgs):
         print("There was an unexpected error: " + str(e))
         sys.exit(1)
 
+
 """ Image Processing """
-def normalize_image(img):
-    """ Normalize image values to [0,1] """
-    min_, max_ = float(np.min(img)), float(np.max(img))
-    return (img - min_) / (max_ - min_)
+
 
 """ Image I/O  """
 def read_nifti_series(filename):
@@ -46,8 +44,8 @@ def read_nifti_series(filename):
     num_images = 1
     if image_dim >= 3:
         num_images = image_shape[2]
-
-    return proxy_img, hdr, num_images, hdr.get_data_dtype(), hdr["cal_min"], hdr["cal_max"]
+    # Image / J uses cal_max-1.0) for non GRAY32 images?
+    return proxy_img, hdr, num_images, hdr.get_data_dtype(), hdr["cal_min"], hdr["cal_max"] - 1
 
 
 # img_reorient is the orig input NIFTI image in DICOM LPS
@@ -55,8 +53,8 @@ def write_nifti_series(img, datatype, img_data_array, outputdirectory, base_fnam
     filename = outputdirectory + os.path.sep + base_fname + "_awl" + filepattern
     new_header = header = img.header.copy()
     new_header.set_slope_inter(1, 0)  # no scaling
-    new_header['cal_min'] = np.min(img_data_array)  #TODO -- write this as MIS W/L thresholds
-    new_header['cal_max'] = np.max(img_data_array)
+    new_header['cal_min'] = np.min(img_data_array)
+    new_header['cal_max'] = np.max(img_data_array) + 1
     new_header['bitpix'] = 16
     new_header['descrip'] = "NIfti suto window level volume"
 
@@ -84,25 +82,24 @@ def perform_autowindowlevel(input_nifti_file):
 
         # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
         (rows, cols) = img_slc.shape  # TODO -- don't understand rows, cols are flipped for mammos
+        img_slc_int32 = img_slc.astype(np.int32)  # we cast to int32 to handle both short and ushorts
+        c_int_p = ctypes.POINTER(ctypes.c_int)
+        data = img_slc_int32.ctypes.data_as(c_int_p)
+
         width = ctypes.c_int(cols)
         height = ctypes.c_int(rows)
         HasPadding = ctypes.c_bool(False)
         PaddingValue = ctypes.c_int(0)
         Slope = ctypes.c_double(1)
         Intercept = ctypes.c_double(0)
-
         MIN_ALLOWED = 0
         MAX_ALLOWED = 0
         #short	2 bytes	-32,768 to 32,767
         #unsigned short	2 bytes	0 to 65,535
         if str(datatype.name) == "int16":
-            c_short_p = ctypes.POINTER(ctypes.c_short)
-            data = img_slc.ctypes.data_as(c_short_p)
             MIN_ALLOWED = -32768
             MAX_ALLOWED = 32767
         elif str(datatype.name) == "uint16":
-            c_ushort_p = ctypes.POINTER(ctypes.c_ushort)
-            data = img_slc.ctypes.data_as(c_ushort_p)
             MIN_ALLOWED = 0
             MAX_ALLOWED = 65535
         else:
@@ -124,7 +121,7 @@ def perform_autowindowlevel(input_nifti_file):
             if thresh_hi > MAX_ALLOWED:
                 thresh_hi = MAX_ALLOWED
             img_slc = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
-            print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
+            print("MIS AWL Threshold: [" + str(thresh_lo) + " , " + str(thresh_hi) + "]")
             stat(img_slc)
 
         # NIFTI create and fill mask array
