@@ -20,7 +20,9 @@ extern "C" {
 
 	// assume data is int* (for now)
 	// Pass in original slope and intercept?
+#ifdef _WINDOWS
 	__declspec(dllexport)
+#endif
 	void AutoWindowLevel(MY_IMG_TYPE* data, int width, int height,
 		double Intercept, double Slope, bool HasPadding, int PaddingValue,
 		double& Window, double& Level)
