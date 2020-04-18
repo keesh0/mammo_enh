@@ -1,4 +1,5 @@
 // Image/J (Fiji) macro to implement Breast Peripheral Equalization
+// Input is a directory containing DICOM format files or a single DICOM file.
 // by keesh (keesh@ieee.org)
 
 // Linear rescales an image to [0,1] in place
@@ -60,6 +61,7 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	rename(resultName);
 	selectImage(resultName);
 	getStatistics(area, mean, min, max, std);  // This calculation excludes Inf
+	
 	// Change Inf values from above division to left-most (smallest value) --  may need to change Inf to some other value
 	changeValues(1/0, 1/0, max);
 
@@ -78,14 +80,22 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 //Using batch mode causes weird Windows focus errors on second pass after run LowpassFilters if the class is not compiled.
 setBatchMode(true);
 input_output = getArgument();
-if (!File.isDirectory(input_output)) {
-	print("Invalid input/output directory: " + input_output);
+if (File.isDirectory(input_output)) {
+	list = getFileList(input_output);
+	input_output = input_output + File.separator;
+}
+else if (File.exists(input_output)) {
+	file_base = File.getName(input_output);
+	list = newArray(file_base);
+	input_output = File.getDirectory(input_output);
+}
+else{
+	print("Invalid input file or directory: " + input_output);
 	exit();
 }
 
-list = getFileList(input_output);
-input_output = input_output + File.separator;
 for (i = 0; i < list.length; i++)
+	// input dir, output dir, filename
 	applyBreastPeripheralEqualization(input_output, input_output, list[i]);
 setBatchMode(false); 
 print("fin")
