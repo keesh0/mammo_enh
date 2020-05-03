@@ -124,6 +124,11 @@ def perform_autowindowlevel(input_nifti_file):
             print("MIS AWL Threshold: [" + str(thresh_lo) + " , " + str(thresh_hi) + "]")
             stat(img_slc)
 
+            # Offset image to have a minimum of 0 for AIA CDS
+            img_slc = img_slc - int(thresh_lo)
+            print("Offsetted image to zer0")
+            stat(img_slc)
+
         # NIFTI create and fill mask array
         if slice_no == 0:
             ConstImgDims = (rows, cols, num_images)
