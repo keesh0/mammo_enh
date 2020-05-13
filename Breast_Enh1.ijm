@@ -17,7 +17,7 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	// set up
 	print("Processing file: " + input + filename);
 	open(input + filename); 
-	dotIndex = indexOf(filename, ".");
+	dotIndex = lastIndexOf(filename, ".");
 	title = substring(filename, 0, dotIndex);
 	run("Duplicate...", "title=I1");
 	run("Duplicate...", "title=I2");
