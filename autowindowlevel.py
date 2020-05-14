@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 import argparse
+import glob
 import numpy as np
 import nibabel as nib
 
@@ -16,10 +17,15 @@ if os.name != 'nt':   # 'posix', 'nt', 'java'
 else:
     lib = ctypes.cdll.LoadLibrary('./libautowindowlevel.dll')
 
+INPUT_FILE_PATTERN = "*_result.nii"
 
 def main(inpArgs):
     try:
-        perform_autowindowlevel(os.path.abspath(inpArgs.input_nifti_file))
+        if os.path.isdir(inpArgs.input_nifti_file_or_dir):
+            nifti_files = glob.glob(inpArgs.input_nifti_file_or_dir + os.path.sep + INPUT_FILE_PATTERN)
+            [perform_autowindowlevel(os.path.abspath(x)) for x in nifti_files]
+        else:  # process files
+            perform_autowindowlevel(os.path.abspath(inpArgs.input_nifti_file_or_dir))
         sys.exit(0)
     except IOError as ioex:
         print("There was an IO error: " + str(ioex.strerror))
@@ -148,9 +154,10 @@ if __name__ == '__main__':
     This script runs auto window level on input NIFTI 16-bit images.
     '''
     parser = argparse.ArgumentParser(description='Auto window level on input images')
-    parser.add_argument("-i", dest="input_nifti_file", help="The input NIfti1 format file (16-bit)")
+    parser.add_argument("-i", dest="input_nifti_file_or_dir", required=True, help="The input NIfti1 format file (16-bit)\
+        or a directory of NIfti1 files")
     if len(sys.argv) < 3:
-        print("python autowindowlevel.py -i <input_nifti_file>")
+        print("python autowindowlevel.py -i <input_nifti_file or input_dir>")
         parser.print_help()
         sys.exit(1)
     inpArgs = parser.parse_args()
