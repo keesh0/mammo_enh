@@ -13,6 +13,33 @@ function linearIntensyScale(imageTitle) {
 	setMinAndMax(0, 1);
 }
 
+// This function returns the value of the specified
+// tag  (e.g., "0010,0010") as a string. Returns ""
+// if the tag is not found.
+function getTag(tag) {
+	info = getImageInfo();
+    index1 = indexOf(info, tag);
+    if (index1==-1) return "";
+    index1 = indexOf(info, ":", index1);
+    if (index1==-1) return "";
+    index2 = indexOf(info, "\n", index1);
+    value = substring(info, index1+1, index2);
+    return value;
+}
+// Gets the Presentation LUT Shape Attribute DICOM tag "2050,0020" for the active image
+function getInverted() {
+	invert_image = 0;
+	inverted = getTag("2050,0020");
+   	if (inverted != ""){
+    	inverted = toLowerCase(inverted);
+    	if (indexOf(inverted, "inverse") != -1){
+    		invert_image = 1;
+    	}
+   	}
+   	return invert_image;
+}
+
+
 function applyBreastPeripheralEqualization(input, output, filename) {
 	// set up
 	print("Processing file: " + input + filename);
@@ -26,9 +53,15 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	// Segmentation by thresholding (could probably consolidate following steps)
 	// bgnd=0, fgnd=1
 	selectImage("I1");
+   	invert_image = getInverted();
+   	
 	// 1. Mean, 2. RenyiEntropy, 3. Otsu
 	run("Auto Threshold", "method=Mean white");  
-	run("Invert");
+	if(invert_image){
+		run("Invert");
+		print("Inverted image: " + title);
+	}
+	
 	run("Divide...", "value=255.000");
 	rename("S");
 
@@ -74,7 +107,7 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	print("Processed: " + outputFile);
 	
 	//Clean up
-	close("*");  // Closes all images 
+	close("*");  // Closes all images
 }  // apply...
 
 //Using batch mode causes weird Windows focus errors on second pass after run LowpassFilters if the class is not compiled.
