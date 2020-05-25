@@ -1,7 +1,4 @@
-﻿/// Automatically calculates the window and level for this image frame.
-//bool AutoWindowLevel(double &Window, double &Level, int Frame,
-//    double Intercept=0.0, double Slope=1.0, BOOL HasPadding=FALSE, int PaddingValue=0) ;
-
+﻿// Automatically calculates the window and level for this image frame.
 #include <iostream>
 #include <string> // for string class
 using namespace std;
@@ -24,7 +21,7 @@ extern "C" {
 	__declspec(dllexport)
 #endif
 	void AutoWindowLevel(MY_IMG_TYPE* data, int width, int height,
-		double Intercept, double Slope, bool HasPadding, int PaddingValue,
+		double Intercept, double Slope, bool HasPadding, int PaddingValue, bool Signed,
 		double& Window, double& Level)
 	{
 		// Currently can only handle 16 bit data or less.
@@ -33,6 +30,7 @@ extern "C" {
 
 		cout << "MIS data: " << data << " width= " << width << " height= " << height << endl;
 		cout << "MIS b, m, has_pad, pad_val= " << Intercept << " " << Slope << " " << HasPadding << " " << PaddingValue << endl;
+		cout << "Signed: " << Signed << endl;
 
 		// Debug code only
 		MY_IMG_TYPE min, max;
@@ -101,6 +99,7 @@ extern "C" {
 		}
 
 		// If we're signed, we'll have to offset our index later
+		/*
 		MY_IMG_TYPE negvalue = -1;  // was T
 		bool Signed = false;
 		if (negvalue < 0)
@@ -108,6 +107,7 @@ extern "C" {
 			Signed = true;
 			cout << "Signed" << endl;
 		}
+		*/
 
 		// Instead of testing to Min and Max for all pixels in the image, just
 		//   loop through all of the histogram entries
@@ -173,7 +173,6 @@ extern "C" {
 		// Try to brighten up the images a bit...
 		UINT LevelAdjust = 0;	//(high - low) / 20;
 
-		// 888 Check this
 		Level = (int((Bin_num / valid_bins) * Slope) + Intercept) - LevelAdjust;
 		Window = int((high - low) * Slope);
 

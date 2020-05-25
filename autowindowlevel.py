@@ -80,6 +80,7 @@ def stat(array):
 def perform_autowindowlevel(input_nifti_file):
     img, hdr, num_images, datatype, cal_min, cal_max = read_nifti_series(input_nifti_file)
     print("Calibration: " + str(cal_min) + " " + str(cal_max))
+    print("Data type: " + datatype.name)
 
     img_data_array = None  # NIFTI only
     for slice_no in range(0, num_images):
@@ -98,22 +99,27 @@ def perform_autowindowlevel(input_nifti_file):
         PaddingValue = ctypes.c_int(0)
         Slope = ctypes.c_double(1)
         Intercept = ctypes.c_double(0)
+
         MIN_ALLOWED = 0
         MAX_ALLOWED = 0
         #short	2 bytes	-32,768 to 32,767
         #unsigned short	2 bytes	0 to 65,535
-        if str(datatype.name) == "int16":
+        # WARNING- -numpy int16 seems to have values above 32,767 for some odd reason???
+        if str(datatype.name) != "int16" and str(datatype.name) == "uint16":
+            raise NotImplementedError("Input image data type not supported: " + str(datatype))
+
+        if cal_min < 0 :
             MIN_ALLOWED = -32768
             MAX_ALLOWED = 32767
-        elif str(datatype.name) == "uint16":
+            Signed = ctypes.c_bool(True)
+        else:
             MIN_ALLOWED = 0
             MAX_ALLOWED = 65535
-        else:
-            raise NotImplementedError("Input image data type not supported: " + str(datatype))
+            Signed = ctypes.c_bool(False)
 
         Window = ctypes.c_double()
         Level = ctypes.c_double()
-        lib.AutoWindowLevel(data, width, height, Intercept, Slope, HasPadding, PaddingValue,
+        lib.AutoWindowLevel(data, width, height, Intercept, Slope, HasPadding, PaddingValue, Signed,
                             ctypes.byref(Window), ctypes.byref(Level))
         win = Window.value
         lev = Level.value
