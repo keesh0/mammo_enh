@@ -49,19 +49,36 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	run("Duplicate...", "title=I1");
 	run("Duplicate...", "title=I2");
 	run("Duplicate...", "title=I3");
+
+	run("Duplicate...", "title=I1_T1");
+	run("Duplicate...", "title=I1_T2");
 	
 	// Segmentation by thresholding (could probably consolidate following steps)
 	// bgnd=0, fgnd=1
-	selectImage("I1");
+	selectImage("I1");  
    	invert_image = getInverted();
    	
 	// 1. Mean, 2. RenyiEntropy, 3. Otsu
-	run("Auto Threshold", "method=Mean white");  
+	selectImage("I1_T1");  
+	run("Auto Threshold", "method=Mean white");
+
+	selectImage("I1_T2");  
+	run("Auto Threshold", "method=Otsu white");
+	
 	if(invert_image){
+		selectImage("I1_T1");  
+		run("Invert");
+
+		selectImage("I1_T2");  
 		run("Invert");
 		print("Inverted image: " + title);
 	}
-	
+
+	imageCalculator("OR create", "I1_T1","I1_T2");
+		// new image is call Result of I1_T11
+	run("Duplicate...", "title=M1");
+	run("Duplicate...", "title=M1_DBG");
+	selectImage("M1");
 	run("Divide...", "value=255.000");
 	rename("S");
 
@@ -105,6 +122,20 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 	outputFile = output + title + resultName + resultSuffix;
 	run("NIfTI-1", "save=["+outputFile+"]");
 	print("Processed: " + outputFile);
+
+
+	// BEG DBG CODE
+	selectImage("I1");
+	setOption("ScaleConversions", true);  
+	run("8-bit");
+	run("Merge Channels...", "c1=M1_DBG c4=I1 create keep");
+	selectImage("Composite");
+    resultName="_thresh_overlay";
+    resultSuffix=".png";
+    outputFile = output + title + resultName + resultSuffix;
+    saveAs("PNG", outputFile);
+	// END DBG CODE
+
 	
 	//Clean up
 	close("*");  // Closes all images
