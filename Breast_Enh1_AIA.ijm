@@ -52,32 +52,36 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 	run("Duplicate...", "title=I1");
 	run("Duplicate...", "title=I2");
 	run("Duplicate...", "title=I3");
+	run("Duplicate...", "title=I1_THRESH");
 	
 	// Segmentation by thresholding (could probably consolidate following steps)
 	// bgnd=0, fgnd=1
 	selectImage("I1");  
    	invert_image = getInverted();
 
-    // TODO-- May need to invert
-    //run("NIfTI-1", "save=["+outputFile+"]");
-
+    maskInputFile = input + filename;
+    if(invert_image){
+    	selectImage("I1_THRESH");  
+    	run("Invert");
+        invertName = "_invert";
+        invertSuffix = ".nii";
+        invertFile = output + title + invertName + invertSuffix;
+        run("NIfTI-1", "save=["+invertFile+"]");
+        maskInputFile = invertFile;
+        print("Inverted image: " + title);
+    }
     resultName="_mask";
     resultSuffix=".nii";
     outputFile = output + title + resultName + resultSuffix;
-    exec(obj_mask_exec, "-g", "-d uint8", "-i", input + filename, "-m", outputFile)
+    // need to have each arg as a sep string
+    exec_out = exec(obj_mask_exec, "-g", "-d", "uint8", "-i", maskInputFile, "-m", outputFile);
+    print(exec_out);
    	open(outputFile);
-   	run("Duplicate...", "title=I1_T1");
-	selectImage("I1_T1");
-	if(invert_image){
-		selectImage("I1_T1");  
-		run("Invert");
-		print("Inverted image: " + title);
-	}
-
 	run("Duplicate...", "title=M1");
 	run("Duplicate...", "title=M1_DBG");
+	selectImage("M1_DBG");
+	run("Multiply...", "value=255.000");  // for viz
 	selectImage("M1");
-	run("Divide...", "value=255.000");
 	rename("S");
 
 	//Low-pass filter
@@ -121,9 +125,9 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 	run("NIfTI-1", "save=["+outputFile+"]");
 	print("Processed: " + outputFile);
 
-
 	// BEG DBG CODE
 	selectImage("I1");
+	run("Invert");
 	setOption("ScaleConversions", true);  
 	run("8-bit");
 	run("Merge Channels...", "c1=M1_DBG c4=I1 create keep");
@@ -133,7 +137,6 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
     outputFile = output + title + resultName + resultSuffix;
     saveAs("PNG", outputFile);
 	// END DBG CODE
-
 	
 	//Clean up
 	close("*");  // Closes all images
@@ -142,8 +145,6 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 //NOTE-- Using batch mode causes weird Windows focus errors on second pass after run LowpassFilters if the class is not compiled.
 setBatchMode(true);
 args = getArgument();
-if (lengthOf(args)!=2)
-    exit("'" + args + "' incorrect number of arguments");
 
 // May need to try different seps
 //E:\data\CDor_3\mammo\Jordana_CEM\Patient_004 C:\Users\eric\kauai\bin\ObjectMask.exe"
@@ -163,6 +164,10 @@ else if (File.exists(input_output)) {
 }
 else{
 	print("Invalid input file or directory: " + input_output);
+	exit();
+}
+if ( ! File.exists(obj_mask_exec)) {
+	print("Invalid ObjectMask executable: " + obj_mask_exec);
 	exit();
 }
 
