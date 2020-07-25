@@ -128,7 +128,7 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 	// BEG DBG CODE
 	selectImage("I1");
 	run("Invert");
-	setOption("ScaleConversions", true);  
+	setOption("ScaleConversions", true);
 	run("8-bit");
 	run("Merge Channels...", "c1=M1_DBG c4=I1 create keep");
 	selectImage("Composite");
