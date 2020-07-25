@@ -64,7 +64,7 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 
 	selectImage("I1_T2");  
 	run("Auto Threshold", "method=Otsu white");
-	
+
 	if(invert_image){
 		selectImage("I1_T1");  
 		run("Invert");
@@ -126,7 +126,7 @@ function applyBreastPeripheralEqualization(input, output, filename) {
 
 	// BEG DBG CODE
 	selectImage("I1");
-	setOption("ScaleConversions", true);  
+	setOption("ScaleConversions", true);
 	run("8-bit");
 	run("Merge Channels...", "c1=M1_DBG c4=I1 create keep");
 	selectImage("Composite");
