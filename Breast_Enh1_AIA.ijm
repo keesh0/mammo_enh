@@ -59,22 +59,24 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 	selectImage("I1");  
    	invert_image = getInverted();
 
-    maskInputFile = input + filename;
+    niiSuffix = ".nii";
+    selectImage("I1_THRESH");
     if(invert_image){
-    	selectImage("I1_THRESH");  
     	run("Invert");
-        invertName = "_invert";
-        invertSuffix = ".nii";
-        invertFile = output + title + invertName + invertSuffix;
-        run("NIfTI-1", "save=["+invertFile+"]");
-        maskInputFile = invertFile;
+        niiFile = output + title + "_invert" + niiSuffix;
         print("Inverted image: " + title);
     }
+    else{
+        niiFile = output + title + niiSuffix;
+    }
+    run("NIfTI-1", "save=["+niiFile+"]");
+    maskInputFile = niiFile;
+
     resultName="_mask";
     resultSuffix=".nii";
     outputFile = output + title + resultName + resultSuffix;
     // need to have each arg as a sep string
-    exec_out = exec(obj_mask_exec, "-g", "-d", "uint8", "-i", maskInputFile, "-m", outputFile);
+    exec_out = exec(obj_mask_exec, "-t", "mammo-breast", "-g", "-d", "uint8", "-i", maskInputFile, "-m", outputFile);
     print(exec_out);
    	open(outputFile);
 	run("Duplicate...", "title=M1");
