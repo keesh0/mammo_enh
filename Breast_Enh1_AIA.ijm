@@ -3,6 +3,11 @@
 // Input is a directory containing DICOM format files or a single DICOM file.
 // Second input is the complete path to the AIA Object Mask executable
 // Separator between inputs is a space.
+// ex.) beware quotes
+// java -jar E:\source\Java\Fiji\fiji-win64\Fiji.app\jars\ij-1.52p.jar
+// -ijpath E:\source\Java\Fiji\fiji-win64\Fiji.app -batch
+// "E:\source\Java\Fiji\fiji-win64\Fiji.app\macros\Breast_Enh1_AIA.ijm"
+// "E:\data\CDor_3\mammo\Jordana_CEM\Patient_001 C:\Users\eric\kauai\bin\ObjectMask.exe"
 // by keesh (keesh@ieee.org)
 
 // Linear rescales an image to [0,1] in place
@@ -149,7 +154,7 @@ setBatchMode(true);
 args = getArgument();
 
 // May need to try different seps
-//E:\data\CDor_3\mammo\Jordana_CEM\Patient_004 C:\Users\eric\kauai\bin\ObjectMask.exe"
+// "E:\data\CDor_3\mammo\Jordana_CEM\Patient_004 C:\Users\eric\kauai\bin\ObjectMask.exe"
 
 args_array = split(args, "");
 input_output  = args_array[0];
