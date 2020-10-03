@@ -1,4 +1,6 @@
 # Python  script to apply auto window/level to a NIFTI format file.
+# Apply a Gaussian Mixture Model (GMM) to snip off the left-most tail.
+# Apply binning of the reamining image to cut the intensities in half.
 # Python 3.6.3, numpy 1.18.2
 # nibabel 3.0.2
 # Translated from MIS AImageT<T>::AutoWindowLevel
@@ -8,6 +10,9 @@ from pathlib import Path
 import argparse
 import glob
 import numpy as np
+import sklearn
+from sklearn.mixture import GaussianMixture as GMM
+
 import nibabel as nib
 
 import ctypes
@@ -70,12 +75,42 @@ def write_nifti_series(img, datatype, img_data_array, outputdirectory, base_fnam
     nib.save(nifti_img, filename)
 
 
+""" Image Util """
 def get_image_slice(img, slice_no):
     return img.dataobj[..., slice_no, 0]
 
-""" Image Stats / Display"""
 def stat(array):
     print('min: ' + str(np.min(array)) + ' max: ' + str(np.max(array)) + ' median: ' + str(np.median(array)) + ' avg: ' + str(np.mean(array)))
+
+def rebin_image(img, nbins):
+    """ Rebin image intensity values to nbins (ex. 256) """
+    min_, max_ = float(np.min(img)), float(np.max(img))
+    delta_ = (max_ - min_) / nbins
+    return (img - min_) / delta_
+
+def argmedian(x):
+    """ Get the index of the median in an numpy array for odd sizes  """
+    return np.argpartition(x, len(x) // 2)[len(x) // 2]
+
+def calculate_low_threshold_based_on_gmm(img):
+    """ Calculate low threshold to snip off tail off Gaussian using a 3 component GMM to model the intensities.
+        If we modeled by 3 components then we take the median mean of the 3 Gaussians - 3 s.d.
+    """
+    lo = img.min()
+    hi = img.max()
+    num_bins = hi - lo + 1
+    # turn image into 1D []
+    data = img.ravel()
+    # remove lowest intensity background pixels
+    data = data[data != 0]
+    gmm = GMM(n_components=3).fit(X=np.expand_dims(data, 1))
+    means = gmm.means_.ravel()
+    median_idx = argmedian(means)
+    stddevs = np.sqrt(gmm.covariances_)
+    stddevs = stddevs.ravel()
+    threshold_low = means[median_idx] - 3 * stddevs[median_idx]
+    return threshold_low
+
 
 def perform_autowindowlevel(input_nifti_file):
     img, hdr, num_images, datatype, cal_min, cal_max = read_nifti_series(input_nifti_file)
@@ -139,6 +174,17 @@ def perform_autowindowlevel(input_nifti_file):
             # Offset image to have a minimum of 0 for AIA CDS
             img_slc = img_slc - int(thresh_lo)
             print("Offsetted image to zer0")
+            stat(img_slc)
+
+            # Snip off low-end tail
+            thresh_lo = calculate_low_threshold_based_on_gmm(img_slc)
+            img_slc = np.clip(img_slc, int(thresh_lo))
+            print("Snipped off tail to: " + str(thresh_lo))
+            stat(img_slc)
+
+            # Re-binning to half of the intensities
+            num_bins = (img_slc.max() - img_slc.min() + 1) / 2
+            img_slc = rebin_image(img_slc, num_bins)
             stat(img_slc)
 
         # NIFTI create and fill mask array
