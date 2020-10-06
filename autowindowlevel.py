@@ -114,6 +114,7 @@ def calculate_low_threshold_based_on_gmm(img):
 
 def perform_autowindowlevel(input_nifti_file):
     img, hdr, num_images, datatype, cal_min, cal_max = read_nifti_series(input_nifti_file)
+    print("Processing: " + str(input_nifti_file) + "...")
     print("Calibration: " + str(cal_min) + " " + str(cal_max))
     print("Data type: " + datatype.name)
 
@@ -160,6 +161,7 @@ def perform_autowindowlevel(input_nifti_file):
         lev = Level.value
         print("Auto W/L window = " + str(win) + ", level = " + str(lev))
         if win != 1:
+            # Step 1:  Auto window level via Mayo Image Studio technique
             thresh_lo = float(lev) - 0.5 - float(win-1) / 2.0
             thresh_hi = float(lev) - 0.5 + float(win-1) / 2.0
             thresh_hi += 1.0  # +1 due to > sided test
@@ -171,20 +173,20 @@ def perform_autowindowlevel(input_nifti_file):
             print("MIS AWL Threshold: [" + str(thresh_lo) + " , " + str(thresh_hi) + "]")
             stat(img_slc)
 
-            # Offset image to have a minimum of 0 for AIA CDS
-            img_slc = img_slc - int(thresh_lo)
-            print("Offsetted image to zer0")
-            stat(img_slc)
-
-            # Snip off low-end tail
+            # Step 2:  Snip off low-end tail
             thresh_lo = calculate_low_threshold_based_on_gmm(img_slc)
-            img_slc = np.clip(img_slc, int(thresh_lo))
-            print("Snipped off tail to: " + str(thresh_lo))
+            img_slc = np.clip(img_slc, a_min=int(thresh_lo), a_max=None)
+            print("***Snipped off tail to: " + str(thresh_lo))
             stat(img_slc)
 
-            # Re-binning to half of the intensities
+            # Step 3:  Re-binning to half of the intensities
             num_bins = (img_slc.max() - img_slc.min() + 1) / 2
             img_slc = rebin_image(img_slc, num_bins)
+            stat(img_slc)
+
+            # Step 4:  Offset image to have a minimum of 0 for AIA CDS
+            img_slc = img_slc - int(img_slc.min())
+            print("Offsetted image to zer0")
             stat(img_slc)
 
         # NIFTI create and fill mask array
@@ -198,7 +200,7 @@ def perform_autowindowlevel(input_nifti_file):
         nifti_base = file_as_path.resolve().stem
         write_nifti_series(img, datatype, img_data_array, str(file_as_path.parent), nifti_base)
 
-    print("Auto window level COMPLETE.")
+    print("Auto window level COMPLETE.\n")
 
 
 if __name__ == '__main__':
