@@ -175,6 +175,9 @@ def perform_autowindowlevel(input_nifti_file):
 
             # Step 2:  Snip off low-end tail
             thresh_lo = calculate_low_threshold_based_on_gmm(img_slc)
+            if thresh_lo < img_slc.min():
+                thresh_lo = img_slc.min()
+
             img_slc = np.clip(img_slc, a_min=int(thresh_lo), a_max=None)
             print("***Snipped off tail to: " + str(thresh_lo))
             stat(img_slc)
