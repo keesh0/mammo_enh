@@ -12,7 +12,7 @@
 // by keesh (keesh@ieee.org)
 
 // Linear rescales an image to [0,1] in place
-function linearIntensyScale(imageTitle) {
+function linearIntensityScale(imageTitle) {
 	selectImage(imageTitle);  
 	run("32-bit");
 	getRawStatistics(nPixels, mean, min, max);
@@ -83,7 +83,7 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
     resultSuffix=".nii";
     outputFile = output + title + resultName + resultSuffix;
     // need to have each arg as a sep string
-    exec_out = exec(obj_mask_exec, "-t", "mammo-breast", "-g", "-d", "uint8", "-i", maskInputFile, "-m", outputFile);
+    exec_out = exec(obj_mask_exec, "-t", "mammo", "-d", "uint8", "-i", maskInputFile, "-m", outputFile);
     print(exec_out);
    	open(outputFile);
 	run("Duplicate...", "title=M1");
@@ -104,7 +104,7 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 	imageCalculator("Multiply create 32-bit", "B","S");
 	selectImage("Result of B");
 	rename("M");
-	linearIntensyScale("M");
+	linearIntensityScale("M");
 
 	// M ^ 0.75
 	run("Gamma...", "value=0.75");
@@ -159,6 +159,11 @@ args = getArgument();
 // "E:\data\CDor_3\mammo\Jordana_CEM\Patient_004 C:\Users\eric\kauai\bin\ObjectMask.exe"
 
 args_array = split(args, "");
+if (args_array.length==1 && args_array[0]=="--version") {
+	print("0.0.1");
+	exit();
+}
+
 input_output  = args_array[0];
 obj_mask_exec = args_array[1];
 
