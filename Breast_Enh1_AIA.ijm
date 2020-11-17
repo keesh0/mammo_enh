@@ -1,9 +1,9 @@
 // Image/J (Fiji) macro to implement Breast Peripheral Equalization.
 // Image J's "Auto Threshold" is replaced by AIA ObjectMask.
-// Input is a directory containing DICOM format files or a single DICOM file.
+// Input is a directory containing NIFTI format files or a single NIFTI file.
 // Second input is the complete path to the AIA Object Mask executable
 // Separator between inputs is a space.
-// Input DICOMs should be attenuation images (possibly with inverted luts).
+// Input NIFTIs should be inverted attenuation images (air=dark body=bright).
 // ex.) beware quotes
 // java -jar E:\source\Java\Fiji\fiji-win64\Fiji.app\jars\ij-1.52p.jar
 // -ijpath E:\source\Java\Fiji\fiji-win64\Fiji.app -batch
@@ -22,33 +22,6 @@ function linearIntensityScale(imageTitle) {
 	setMinAndMax(0, 1);
 }
 
-// This function returns the value of the specified
-// tag  (e.g., "0010,0010") as a string. Returns ""
-// if the tag is not found.
-function getTag(tag) {
-	info = getImageInfo();
-    index1 = indexOf(info, tag);
-    if (index1==-1) return "";
-    index1 = indexOf(info, ":", index1);
-    if (index1==-1) return "";
-    index2 = indexOf(info, "\n", index1);
-    value = substring(info, index1+1, index2);
-    return value;
-}
-// Gets the Presentation LUT Shape Attribute DICOM tag "2050,0020" for the active image.
-// Actually just inverted for display.
-function getInverted() {
-	invert_image = 0;
-	inverted = getTag("2050,0020");
-   	if (inverted != ""){
-    	inverted = toLowerCase(inverted);
-    	if (indexOf(inverted, "inverse") != -1){
-    		invert_image = 1;
-    	}
-   	}
-   	return invert_image;
-}
-
 
 function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exec) {
 	// set up
@@ -56,6 +29,10 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 	open(input + filename); 
 	dotIndex = lastIndexOf(filename, ".");
 	title = substring(filename, 0, dotIndex);
+
+	// Invert image to obtain an attenuation image
+	run("Invert");
+	
 	run("Duplicate...", "title=I1");
 	run("Duplicate...", "title=I2");
 	run("Duplicate...", "title=I3");
@@ -64,18 +41,12 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
 	// Segmentation by thresholding (could probably consolidate following steps)
 	// bgnd=0, fgnd=1
 	selectImage("I1");  
-   	invert_image = getInverted();
 
     niiSuffix = ".nii";
     selectImage("I1_THRESH");
-    if(invert_image){
-    	run("Invert");
-        niiFile = output + title + "_invert" + niiSuffix;
-        print("Inverted image: " + title);
-    }
-    else{
-        niiFile = output + title + niiSuffix;
-    }
+	run("Invert");
+    niiFile = output + title + "_invert" + niiSuffix;
+    print("Inverted image: " + title);
     run("NIfTI-1", "save=["+niiFile+"]");
     maskInputFile = niiFile;
 
