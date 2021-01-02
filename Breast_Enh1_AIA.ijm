@@ -45,6 +45,13 @@ function applyBreastPeripheralEqualization(input, output, filename, obj_mask_exe
     niiSuffix = ".nii";
     selectImage("I1_THRESH");
 	run("Invert");
+
+	// We boost the high mammo image for the Object Maker as it is very faint on the breast periphery
+	title_lc = title.toLowerCase();
+	if( title_lc.contains("high") ) {
+		run("Gamma...", "value=0.05");
+	}
+	
     niiFile = output + title + "_invert" + niiSuffix;
     print("Inverted image: " + title);
     run("NIfTI-1", "save=["+niiFile+"]");
