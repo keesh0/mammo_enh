@@ -40,7 +40,6 @@ function isHighEnergy() {
 function applyAIAMaskExtraction(input, output, filename, obj_mask_exec) {
 	// const
 	niiSuffix = ".nii";
-    resultName= "_mask";
 
 	// set up
 	print("Processing DCM file: " + input + filename);
@@ -48,17 +47,20 @@ function applyAIAMaskExtraction(input, output, filename, obj_mask_exec) {
 	run("Duplicate...", "title=I1");
 	dotIndex = lastIndexOf(filename, ".");
 	title = substring(filename, 0, dotIndex);
-	current_uid = getTag("0020,000E");
+	uid = getTag("0020,000E");
+	uid = String.trim(uid);
 	is_high = isHighEnergy();
 	is_high_str = "high";
 	if (! is_high){
 		is_high_str = "low";
 	}
+	
 	// May need to make easier for parser
-	seriesId = "_" + current_uid + "_" + is_high_str;
+	resultName= "_" + is_high_str + "mask";
+	seriesId = "_" + uid;
 
 	// DICOM processing assumed
-	// Invert image to obtain an attenuation image
+	// Invert image to obtain an attenuation image on write
 	run("Invert");
     niiFile = output + title + niiSuffix;
     print("Converted image: " + title);
@@ -71,7 +73,7 @@ function applyAIAMaskExtraction(input, output, filename, obj_mask_exec) {
     // bgnd=0, fgnd=1
     exec_out = exec(obj_mask_exec, "-t", "mammo", "-d", "uint8", "-i", maskInputFile, "-m", outputFile);
     print(exec_out);
-    print("Created mask for low energy image: " + title);
+    print("Created mask for energy image: " + title);
 
 	// BEG DBG CODE	
 	open(outputFile);
@@ -98,10 +100,6 @@ function applyAIAMaskExtraction(input, output, filename, obj_mask_exec) {
 //NOTE-- Using batch mode causes weird Windows focus errors on second pass after run LowpassFilters if the class is not compiled.
 setBatchMode(true);
 args = getArgument();
-
-// May need to try different seps
-// "E:\data\CDor_3\mammo\Jordana_CEM\Patient_004 C:\Users\eric\kauai\bin\ObjectMask.exe"
-
 args_array = split(args, "");
 if (args_array.length==1 && args_array[0]=="--version") {
 	print("0.0.1");
