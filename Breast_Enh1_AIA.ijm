@@ -153,72 +153,65 @@ if (args_array.length==1 && args_array[0]=="--version") {
 	print("0.0.1");
 	exit();
 }
-
 input_output  = args_array[0];
 
+// OPTIMIZE ME into one loop if this dir. case ever goes to production
+// Step 1: Record base filenames of input NII images.
 if (File.isDirectory(input_output)) {
 	list = getFileList(input_output);
 	input_output = input_output + File.separator;
-
-	low_series_inst_uid = newArray();
-	low_base_fname = newArray();
-
-	// Process all low energy images first and record the following info
-	// SeriesInstanceUID  (0020,000e) => low energy base filenamne
+	base_fnames = newArray();
+	low_masks = newArray();
+	high_masks = newArray();
 	for (i = 0; i < list.length; i++) {
 		if( File.isDirectory(input_output + list[i]) ) {
-			print("Skipping iternal directory: " + list[i]);
 			continue;
 		}
-		//skip non nii files
-		//process only mask files
-		open(input_output + list[i]); 
-		is_high = isHighEnergy();
-		uid = getTag("0020,000E");
-		dotIndex = lastIndexOf(list[i], ".");
-		title = substring(list[i], 0, dotIndex);
-		close();
-		if ( ! is_high ){
-			low_series_inst_uid = Array.concat(low_series_inst_uid, uid);
-			low_base_fname = Array.concat(low_base_fname, title);	
-			applyBreastPeripheralEqualization(input_output, input_output, list[i], obj_mask_exec, low_series_inst_uid, low_base_fname, 0);
+		if( endsWith(list[i], ".dcm") ){
+			continue;
 		}
+		if( endsWith(list[i], ".png") ){
+			continue;
+		}
+		// skip previous resultant mask images
+		if( list[i].contains("_mask") ){
+			continue;
+		}
+		if( list[i].contains("_lowmask_") ){
+			low_masks = Array.concat(low_masks, list[i]);	
+			continue;
+		}
+		if( list[i].contains("_highmask_") ){
+			high_masks = Array.concat(high_masks, list[i]);	
+			continue;
+		}
+		if( list[i].contains("result") ){
+			continue;
+		}
+		base_fnames = Array.concat(base_fnames, list[i]);	
+	}  // for i
+	
+	// Step 2: form lists of low and high complete filenames.
+	for (i = 0; i < base_fnames.length; i++) {
+		nii_base = base_fnames[i];
 
-		// We use the low energy mask if it is aviable, as the high energy image is very faint on the breast periphery
-		// 2.25.99203722366699835862900662085933500392_mask.nii
-		found_match = 0;
-		for (i = 0; i < low_series_inst_uid.length; i++) {
-			if( low_series_inst_uid[i] == current_uid ){
-				outputFile = output + low_base_fname[i] + resultName + resultSuffix;
-    			print("Using low mask: " + low_base_fname[i] + " for high energy image:" + title);
-    			found_match = 1;
-    			break;
+		// TODO-- How to get uid of nii_base (NII) ?
+		// Need another pass tosave series UID for base_fnames[i]
+		low_mask = "<fake_low_mask>";
+		high_mask = "<fake_high_mask>";
+		// assuming low masks is the same size as high masks
+		for (j = 0; j < low_masks.length; j++) {
+			if( low_masks[j].contains(uid) ){
+				low_mask = low_masks[j];
 			}
-		}
-		if ( ! found_match ){
-			print("No matching series UID for high energy image:" + title + " skipping.");	
-			return;
-		}
-		
+			if( high_masks[j].contains(uid) ){
+				high_mask = high_masks[j];
+			}
+		}  // for j
+		print("Calling PE: " + nii_base + " " + low_mask + " " + high_mask + "\n");
+		break;
+		// applyBreastPeripheralEqualization(input_output, input_output, nii_base, input_output+low_mask, input_output+high_mask);
 	}  // for i
-
-	print("processed all low images: ");
-	Array.print(low_series_inst_uid);
-	Array.print(low_base_fname);
-
-	// Process all the high energy images passing in the above data struct 
-	for (i = 0; i < list.length; i++) {
-		open(input_output + list[i]); 
-		is_high = isHighEnergy();
-		uid = getTag("0020,000E");
-		close();
-		if ( is_high ){
-			applyBreastPeripheralEqualization(input_output, input_output, list[i], obj_mask_exec, low_series_inst_uid, low_base_fname, 1);
-		}
-	}  // for i
-	setBatchMode(false); 
-	print("fin");
-	exit();
 }
 else if (File.exists(input_output)) {
 	file_base = File.getName(input_output);
