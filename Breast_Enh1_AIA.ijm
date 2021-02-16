@@ -8,6 +8,8 @@
 // Input NIFTIs should be inverted attenuation images (air=dark body=bright).
 // ex.) beware quotes
 // java -jar E:\source\Java\Fiji\fiji-win64\Fiji.app\jars\ij-1.52p.jar -ijpath E:\source\Java\Fiji\fiji-win64\Fiji.app -batch "E:\source\Java\Fiji\fiji-win64\Fiji.app\macros\Breast_Enh1_AIA.ijm" "E:\data\CDor_3\mammo\Jordana_CEM\Patient_001\2.25.50003046908655299155646025163908180623.nii  E:\data\CDor_3\mammo\Jordana_CEM\Patient_001\2.25.56988187101991964934046277824279053058_lowmask_2.25.222182488376762395091213824095766275475.nii E:\data\CDor_3\mammo\Jordana_CEM\Patient_001\2.25.50003046908655299155646025163908180623_highmask_2.25.222182488376762395091213824095766275475.nii"
+// or
+// java -jar E:\source\Java\Fiji\fiji-win64\Fiji.app\jars\ij-1.52p.jar -ijpath E:\source\Java\Fiji\fiji-win64\Fiji.app -batch "E:\source\Java\Fiji\fiji-win64\Fiji.app\macros\Breast_Enh1_AIA.ijm" "E:\data\CDor_3\mammo\Jordana_CEM\Patient_001"
 // by keesh (keesh@ieee.org)
 
 // Linear rescales an image to [0,1] in place
@@ -163,40 +165,49 @@ if (File.isDirectory(input_output)) {
 	base_fnames = newArray();
 	low_masks = newArray();
 	high_masks = newArray();
+	series_inst_uids = newArray();
 	for (i = 0; i < list.length; i++) {
-		if( File.isDirectory(input_output + list[i]) ) {
+		base_fname = list[i];
+		if( File.isDirectory(input_output + base_fname) ) {
 			continue;
 		}
-		if( endsWith(list[i], ".dcm") ){
+		if( endsWith(base_fname, ".dcm") ){
 			continue;
 		}
-		if( endsWith(list[i], ".png") ){
+		if( endsWith(base_fname, ".png") ){
 			continue;
 		}
 		// skip previous resultant mask images
-		if( list[i].contains("_mask") ){
+		if( base_fname.contains("_mask") ){
 			continue;
 		}
-		if( list[i].contains("_lowmask_") ){
-			low_masks = Array.concat(low_masks, list[i]);	
+		if( base_fname.contains("_lowmask_") ){
+			low_masks = Array.concat(low_masks, base_fname);	
 			continue;
 		}
-		if( list[i].contains("_highmask_") ){
-			high_masks = Array.concat(high_masks, list[i]);	
+		if( base_fname.contains("_highmask_") ){
+			high_masks = Array.concat(high_masks, base_fname);	
 			continue;
 		}
-		if( list[i].contains("result") ){
+		if( base_fname.contains("result") ){
 			continue;
 		}
-		base_fnames = Array.concat(base_fnames, list[i]);	
+		base_fnames = Array.concat(base_fnames, base_fname);	
+		// 2.25.99203722366699835862900662085933500392_orig_2.25.137109829304374135766793880253913194074.nii
+		dotIndex = lastIndexOf(base_fname, ".");
+		title = substring(base_fname, 0, dotIndex);	
+		// 2.25.99203722366699835862900662085933500392_orig_2.25.137109829304374135766793880253913194074
+		origLabel = "_orig_";
+		dotIndex = lastIndexOf(title, origLabel);
+		series_uid = substring(title, dotIndex+origLabel.length);	
+		series_inst_uids = Array.concat(series_inst_uids, series_uid);	
 	}  // for i
 	
 	// Step 2: form lists of low and high complete filenames.
 	for (i = 0; i < base_fnames.length; i++) {
-		nii_base = base_fnames[i];
-
-		// TODO-- How to get uid of nii_base (NII) ?
-		// Need another pass tosave series UID for base_fnames[i]
+		base_fname = base_fnames[i];
+		// Get series uid of current nii image
+		uid = series_inst_uids[i]; 
 		low_mask = "<fake_low_mask>";
 		high_mask = "<fake_high_mask>";
 		// assuming low masks is the same size as high masks
@@ -208,9 +219,7 @@ if (File.isDirectory(input_output)) {
 				high_mask = high_masks[j];
 			}
 		}  // for j
-		print("Calling PE: " + nii_base + " " + low_mask + " " + high_mask + "\n");
-		break;
-		// applyBreastPeripheralEqualization(input_output, input_output, nii_base, input_output+low_mask, input_output+high_mask);
+		applyBreastPeripheralEqualization(input_output, input_output, base_fname, input_output+low_mask, input_output+high_mask);
 	}  // for i
 }
 else if (File.exists(input_output)) {

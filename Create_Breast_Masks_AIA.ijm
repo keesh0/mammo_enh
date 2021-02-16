@@ -58,11 +58,12 @@ function applyAIAMaskExtraction(input, output, filename, obj_mask_exec) {
 	// May need to make easier for parser
 	resultName= "_" + is_high_str + "mask";
 	seriesId = "_" + uid;
+	origLabel = "_orig";
 
 	// DICOM processing assumed
 	// Invert image to obtain an attenuation image on write
 	run("Invert");
-    niiFile = output + title + niiSuffix;
+    niiFile = output + title + origLabel + seriesId + niiSuffix;
     print("Converted image: " + title);
     run("NIfTI-1", "save=["+niiFile+"]");
 	open(niiFile);
