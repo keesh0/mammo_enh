@@ -25,11 +25,14 @@ function getTag(tag) {
 
 // Checks the 0008,0008  Image Type: ORIGINAL\PRIMARY\\LOW_ENERGY wrt HIGH_ENERGY for the active image
 function isHighEnergy() {
-	high_image = 0;
+	high_image = -1;
 	image_type = getTag("0008,0008");
    	if (image_type != ""){
     	image_type = toLowerCase(image_type);
-    	if (indexOf(image_type, "high") != -1){
+    	if (indexOf(image_type, "low") != -1){
+    		high_image = 0;
+    	}
+    	else if (indexOf(image_type, "high") != -1){
     		high_image = 1;
     	}
    	}
@@ -50,8 +53,12 @@ function applyAIAMaskExtraction(input, output, filename, obj_mask_exec) {
 	uid = getTag("0020,000E");
 	uid = String.trim(uid);
 	is_high = isHighEnergy();
+	if(is_high == -1) {
+		print("Image is not low or high energy: " + title);
+		return;
+	}
 	is_high_str = "high";
-	if (! is_high){
+	if (!is_high){
 		is_high_str = "low";
 	}
 	

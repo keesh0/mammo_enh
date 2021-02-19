@@ -23,34 +23,6 @@ function linearIntensityScale(imageTitle) {
 	setMinAndMax(0, 1);
 }
 
-// This function returns the value of the specified
-// tag  (e.g., "0010,0010") as a string. Returns ""
-// if the tag is not found.
-// TODO -- Fix this for 
-function getTag(tag) {
-	info = getImageInfo();
-    index1 = indexOf(info, tag);
-    if (index1==-1) return "";
-    index1 = indexOf(info, ":", index1);
-    if (index1==-1) return "";
-    index2 = indexOf(info, "\n", index1);
-    value = substring(info, index1+1, index2);
-    return value;
-}
-// Checks the 0008,0008  Image Type: ORIGINAL\PRIMARY\\LOW_ENERGY wrt HIGH_ENERGY for the active image
-function isHighEnergy() {
-	high_image = 0;
-	image_type = getTag("0008,0008");
-   	if (image_type != ""){
-    	image_type = toLowerCase(image_type);
-    	if (indexOf(image_type, "high") != -1){
-    		high_image = 1;
-    	}
-   	}
-   	return high_image;
-}
-
-
 function applyBreastPeripheralEqualization(input, output, filename, low_energy_mask, high_energy_mask) {
 	//const
 	resultName="_result";
@@ -202,6 +174,12 @@ if (File.isDirectory(input_output)) {
 		series_uid = substring(title, dotIndex+origLabel.length);	
 		series_inst_uids = Array.concat(series_inst_uids, series_uid);	
 	}  // for i
+
+	// error check
+	if(((base_fnames.length/2) != low_masks.length) || ((base_fnames.length/2) != high_masks.length)) {
+		print("Not enough low or high energy images.");
+		exit();
+	}
 	
 	// Step 2: form lists of low and high complete filenames.
 	for (i = 0; i < base_fnames.length; i++) {
