@@ -211,11 +211,16 @@ if __name__ == '__main__':
     This script runs auto window level on input NIFTI 16-bit images.
     '''
     parser = argparse.ArgumentParser(description='Auto window level on input images')
-    parser.add_argument("-i", dest="input_nifti_file_or_dir", required=True, help="The input NIfti1 format file (16-bit)\
+    parser.add_argument("-i", dest="input_nifti_file_or_dir", help="The input NIfti1 format file (16-bit)\
         or a directory of NIfti1 files")
+    parser.add_argument("-v", dest="version", action='store_true', help="Print this script's version information")
+    inpArgs = parser.parse_args()
+    if inpArgs.version:
+        print("0.0.1")
+        sys.exit(0)
     if len(sys.argv) < 3:
         print("python autowindowlevel.py -i <input_nifti_file or input_dir>")
         parser.print_help()
         sys.exit(1)
-    inpArgs = parser.parse_args()
+
     main(inpArgs)
